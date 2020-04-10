@@ -10,8 +10,6 @@ from utils.filter_bbox import get_filtered
 
 TEST = False
 
-FILTER_BBOX = False
-
 RERANK = 0
 
 CLASS_NUM = 14
@@ -70,8 +68,7 @@ class Retrieval(object):
             image_id = int(image_name)
             predict_labels = info_dict["labels"]
             predict_bboxes = info_dict["bbox"]
-            if FILTER_BBOX:
-                predict_bboxes, predict_labels = get_filtered(predict_bboxes, predict_labels)
+            predict_bboxes, predict_labels = get_filtered(predict_bboxes, predict_labels)
             for item in range(len(predict_labels)):
                 feature = np.load(os.path.join(FEAT_FOLDER, "{}-{}.jpg.npy".format(image_name, item))).tolist()
                 bbox = [int(_) for _ in predict_bboxes[item]]
@@ -118,8 +115,7 @@ class Retrieval(object):
                 query_bboxes = query_dict["bbox"]
                 query_labels = query_dict["labels"]
                 query_scores = query_dict["scores"]
-                if FILTER_BBOX:
-                    query_bboxes, query_labels, query_scores = get_filtered(query_bboxes, query_labels, query_scores)
+                query_bboxes, query_labels, query_scores = get_filtered(query_bboxes, query_labels, query_scores)
                 for qitem in range(len(query_labels)):
                     query_feature = np.load(os.path.join(FEAT_FOLDER, "{}-{}.jpg.npy".format(query_name, qitem))).tolist()
                     gallery_image_id, gallery_bbox = self.__calculate_similarity(query_feature)

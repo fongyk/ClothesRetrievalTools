@@ -10,6 +10,12 @@ Query images are from users (consumers), gallery images are from shops.
 
 Traing sample: a quadruplet consists of shop/user anchors and shop/user negatives.
 
+## Main_dual
+
+Dual models for different input sources, i.e., one for images from user, another for images from shop.
+
+Models are trained epoch by epoch.
+
 ## Requirements
 
 - python                    3.6.10
