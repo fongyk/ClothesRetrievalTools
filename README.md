@@ -16,7 +16,7 @@ Traing sample: a quadruplet consists of shop/user anchors and shop/user negative
 - pytorch                   1.1.0
 - apex                      0.1
 - torchvision               0.2.2
-- [maskrcnn-benchmark](https://github.com/facebookresearch/maskrcnn-benchmark)        0.1
+- [maskrcnn-benchmark](https://github.com/facebookresearch/maskrcnn-benchmark)(optional)        0.1
 
 ## Retrieval
 
