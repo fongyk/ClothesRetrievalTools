@@ -37,7 +37,7 @@ def train(args):
         model = nets[args.net](args.margin, args.omega, args.use_hardtriplet)
         model.to(args.device)
     except Exception as e:
-        logger.error(e, "== Not Implemented ==")
+        logger.error("Initialize {} error: {}".format(args.net, e))
         return
     logger.info("Training {}.".format(args.net))
 
