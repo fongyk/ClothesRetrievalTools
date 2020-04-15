@@ -37,8 +37,6 @@ def extract_image_feature(args):
     query_dataloader = get_loader(args.query_data, args.batch_size)
     gallery_dataloader = get_loader(args.gallery_data, args.batch_size)
 
-    # checkpoint = torch.load(args.checkpoint_path)
-    # model.load_state_dict(checkpoint["model_state_dict"])
     checkpointer = Checkpointer(model, save_dir=args.out_dir)
     _ = checkpointer.load(args.checkpoint_path, use_latest=args.checkpoint_path is None)
 
