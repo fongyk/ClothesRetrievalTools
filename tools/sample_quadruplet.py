@@ -90,7 +90,7 @@ def sample_quadruple_with_category(seperate_path, num_pairs, verbose=True):
                     shop_anchor = shop_anchor.split('/')[-1]
                     user_anchor = user_anchor.split('/')[-1]
                     shop_negative = shop_negative.split('/')[-1]
-                    user_negatives = user_negatives.split('/')[-1]
+                    user_negative = user_negative.split('/')[-1]
                 quadruple = shop_anchor + ' ' + user_anchor + ' ' + shop_negative + ' ' + user_negative + '\n'
                 quadr_file = os.path.join(quadruple_path, "{:06d}".format(n))
                 with open(quadr_file, 'w') as fw:
