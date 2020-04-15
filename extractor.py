@@ -26,7 +26,7 @@ def extract_image_feature(args):
         model = nets[args.model]()
         model.to(args.device)
     except Exception as e:
-        logger.error(e, "== Not Implemented ==")
+        logger.error("Initialize {} error: {}".format(args.net, e))
         return 
     logger.info("Extracting {} feature.".format(args.model))
 
