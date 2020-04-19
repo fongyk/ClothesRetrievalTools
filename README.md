@@ -3,22 +3,15 @@
 ## Data organization
 
 ```
-#category_1
-        ##pair_id_0
-            ###style_0
-                ####shop
-                    xxxx.jpg
-                    ......
-                ####user
-                    xxxx.jpg
-                    ......
-            ###style_1
-            ......
-        ##pair_id_1
-        ......
-#category_2
-......
-#category_13
+category
+└── pair_id
+    └── style
+        ├── shop
+        │   ├── xxxx.jpg
+        │   └── xxxx.jpg
+        └── user
+            ├── xxxx.jpg
+            └── xxxx.jpg
 ```
 
 Query images are from users (consumers), gallery images are from shops.
