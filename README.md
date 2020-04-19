@@ -8,7 +8,7 @@ Input image is cropped based on bounding boxes. Maskrcnn is trained to detect cl
 
 Query images are from users (consumers), gallery images are from shops.
 
-Traing sample: a quadruplet consists of shop/user anchors and shop/user negatives.
+Training sample: a quadruplet consists of shop/user anchors and shop/user negatives.
 
 ## Requirements
 
