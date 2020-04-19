@@ -74,8 +74,8 @@ if __name__ == '__main__':
     args.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     if args.pcaw_path:
-        m = np.load(os.path.join(args.pcaw_path, "mean_0100000.npy"))
-        P = np.load(os.path.join(args.pcaw_path, "pcaw_0100000.npy"))
+        m = np.load(os.path.join(args.pcaw_path, "mean.npy"))
+        P = np.load(os.path.join(args.pcaw_path, "pcaw.npy"))
         pcaw = PCAW(m, P, args.pcaw_dims)
         args.pcaw = pcaw
     else:
