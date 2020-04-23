@@ -61,7 +61,7 @@ def train(args):
         model_user.to(args.device)
         aggre_user.to(args.device)
     except Exception as e:
-        logger.error(e, "== Not Implemented ==")
+        logger.error("Initialize {} error: {}".format(args.model, e))
         sys.exit(1)
     logger.info("Training {}-{}.".format(args.model, args.aggre))
 
