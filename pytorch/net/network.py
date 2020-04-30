@@ -54,7 +54,6 @@ class BaseNet(nn.Module):
         xentropy_loss = (self.xe(shop_a_predict, shop_a_label) + self.xe(user_a_predict, user_a_label) + self.xe(shop_n_predict, shop_n_label) + self.xe(user_n_predict, user_n_label)) * 0.25
 
         loss = self.omega * triplet_loss + (1 - self.omega) * xentropy_loss
-
         return dict(loss=loss, triplet_loss=triplet_loss, xentropy_loss=xentropy_loss)
 
     def hard_loss(self, shop_a, 

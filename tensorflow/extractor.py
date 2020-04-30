@@ -1,10 +1,15 @@
 #!/usr/bin/python3
 
 import os
+## disable tf warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
+## specify gpus
+os.environ["CUDA_VISIBLE_DEVICES"] = "0, 1, 2, 3"
 
 import tensorflow as tf
 from tensorflow import keras
+
+strategy = tf.distribute.MirroredStrategy()
 
 import sys
 import time
@@ -18,12 +23,30 @@ from base.data.test_data import load_test_data
 from base.config.defaults import INPUT_SIZE
 import base.net.network as ntk
 
+parser = argparse.ArgumentParser(description='Extract Deep Feature')
+parser.add_argument('--net', type=str, default="vggnet", help='select vggnet/resnet')
+parser.add_argument('--batch_size', type=int, default=16, help='batch size')
+parser.add_argument('--query_data', type=str, default='fashion_crop_validation_query_list.txt', help='path to test dataset-list')
+parser.add_argument('--gallery_data', type=str, default='fashion_crop_validation_gallery_list.txt', help='path to test dataset-list')
+parser.add_argument('--pcaw_path', default=None, help='path to pca-whiten params: mean.npy & pcaw.npy')
+parser.add_argument('--pcaw_dims', type=int, default=None, help='number of principal components')
+parser.add_argument('--out_dir', type=str, default='output', help='pretrained models directory as well as feature output directory')
+args, _ = parser.parse_known_args()
+
+if args.pcaw_path:
+    m = np.load(os.path.join(args.pcaw_path, "mean.npy"))
+    P = np.load(os.path.join(args.pcaw_path, "pcaw.npy"))
+    pcaw = PCAW(m, P, args.pcaw_dims)
+    args.pcaw = pcaw
+else:
+    args.pcaw = None
+
 nets = {
     "vggnet": ntk.VGGNet,
     "resnet": ntk.ResNet,
 }
 
-def write_result(logger, args, batch_features, batch_predicts, batch_names):
+def write_result(batch_features, batch_predicts, batch_names):
     if isinstance(batch_features, tf.Tensor):
         batch_features = batch_features.numpy()
     if isinstance(batch_names, tf.Tensor):
@@ -45,17 +68,26 @@ def write_result(logger, args, batch_features, batch_predicts, batch_names):
         except OSError:
             logger.info("Can not write feature with {}.".format(name_per_image))
 
-def extract(args):
-    logger = set_logger("extractor", args.out_dir)
-    for name, val in vars(args).items():
-        logger.info("[PARAMS] {}: {}".format(name, val))
+logger = set_logger("extractor", args.out_dir)
+logger.info("Using {} GPUs".format(strategy.num_replicas_in_sync))
+for name, val in vars(args).items():
+    logger.info("[PARAMS] {}: {}".format(name, val))
+
+logger.info("Loading test_data ......")
+global_batch_size = args.batch_size * strategy.num_replicas_in_sync
+query_data, query_len = load_test_data(args.query_data, global_batch_size)
+gallery_data, gallery_len = load_test_data(args.gallery_data, global_batch_size)
+query_data = strategy.experimental_distribute_dataset(query_data)
+gallery_data = strategy.experimental_distribute_dataset(gallery_data)
+
+keras.backend.set_learning_phase(False)
+with strategy.scope():
     try:
         model = nets[args.net]()
     except Exception as e:
         logger.error("Initialize {} error: {}".format(args.net, e))
-        return 
+        sys.exit(0)
     logger.info("Extracting {} feature.".format(args.net))
-
     ## load weights
     try:
         latest = tf.train.latest_checkpoint(args.out_dir)
@@ -64,118 +96,30 @@ def extract(args):
     except Exception as e:
         logger.info(e)
         logger.info("Loading failed, using initialized weights")
-    model.trainable = False
-    keras.backend.set_learning_phase(False)
-
-    logger.info("Loading test_data ......")
-    query_data = load_test_data(args.query_data, args.batch_size)
-    gallery_data = load_test_data(args.gallery_data, args.batch_size)
-    logger.info("Start extracting ......")
-    for test_data in [query_data, gallery_data]:
-        len_data = int(tf.data.experimental.cardinality(test_data))
-        progbar = keras.utils.Progbar(len_data)
-        for i, (batch_imgs, batch_names) in enumerate(test_data, 1):
-            progbar.update(i)
-            # batch_imgs = tf.stop_gradient(batch_imgs)
-            batch_features, batch_predicts = model(batch_imgs, training=False)
-            write_result(
-                logger, 
-                args, 
-                batch_features, 
-                batch_predicts, 
-                batch_names
-            )
-
-def predict(args):
-    logger = set_logger("extractor", args.out_dir)
-    for name, val in vars(args).items():
-        logger.info("[PARAMS] {}: {}".format(name, val))
-    try:
-        base_model = nets[args.net]()
-    except Exception as e:
-        logger.error("Initialize {} error: {}".format(args.net, e))
-        return 
-    logger.info("Extracting {} feature.".format(args.net))
-
-    ## construct model
-    input_shape = (INPUT_SIZE, INPUT_SIZE, 3)
-    inputs = keras.layers.Input(shape=input_shape)
-    feature, logits = base_model.embedder(inputs)
-    model = keras.Model(
-        inputs=inputs,
-        outputs=[feature, logits],
-        name="retrieval"
-        )
-    model.summary()
-    keras.utils.plot_model(model, '{}/model.png'.format(args.out_dir), show_shapes=True)
+        model.trainable = False
     
-    ## load weights
-    try:
-        latest = tf.train.latest_checkpoint(args.out_dir)
-        logger.info("Loading pretrained weights from {}".format(latest))
-        model.load_weights(latest).expect_partial()
-        # model = keras.models.load_model(os.path.join(args.out_dir, "model_final.h5"), compile=False)
-    except Exception as e:
-        logger.info(e)
-        logger.info("Loading failed, using initialized weights")
-    keras.backend.set_learning_phase(False)
+    def extract(batch_imgs, batch_names):
+        batch_features, batch_predicts = model(batch_imgs, training=False)
+        write_result(batch_features, batch_predicts, batch_names)
+    
+    # @tf.function
+    def distributed_extract(*args):
+        return strategy.experimental_run_v2(extract, args=(*args,))
 
-    logger.info("Loading test_data ......")
-    query_data = load_test_data(args.query_data, args.batch_size)
-    gallery_data = load_test_data(args.gallery_data, args.batch_size)
-    logger.info("Start extracting ......")
-    for test_data in [query_data, gallery_data]:
-        len_data = int(tf.data.experimental.cardinality(test_data))
-        progbar = keras.utils.Progbar(len_data)
-        for i, (batch_imgs, batch_names) in enumerate(test_data, 1):
-            progbar.update(i)
-            batch_features, batch_predicts = model.predict(batch_imgs)
-            write_result(
-                logger, 
-                args, 
-                batch_features, 
-                batch_predicts, 
-                batch_names
-            )
+logger.info("Start extracting ......")
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Extract Deep Feature')
-    parser.add_argument('--net', type=str, default="vggnet", help='select vggnet/resnet')
-    parser.add_argument('--batch_size', type=int, default=16, help='batch size')
-    parser.add_argument('--query_data', type=str, default='fashion_crop_validation_query_list.txt', help='path to test dataset-list')
-    parser.add_argument('--gallery_data', type=str, default='fashion_crop_validation_gallery_list.txt', help='path to test dataset-list')
-    parser.add_argument('--pcaw_path', default=None, help='path to pca-whiten params: mean.npy & pcaw.npy')
-    parser.add_argument('--pcaw_dims', type=int, default=None, help='number of principal components')
-    parser.add_argument('--out_dir', type=str, default='output', help='pretrained models directory as well as feature output directory')
-    parser.add_argument('--use-predict', dest='use_predict', action='store_true', help='use `predict` mode (default: `extract` mode)')
-    parser.add_argument('--use-cpu', dest='use_cpu', action='store_true', help='this is tf-gpu, use-cpu to run on cpu')
-    args, _ = parser.parse_known_args()
-
-    if args.use_cpu:
-        os.environ["CUDA_VISIBLE_DEVICES"] = "-1" 
-
-    if args.pcaw_path:
-        m = np.load(os.path.join(args.pcaw_path, "mean.npy"))
-        P = np.load(os.path.join(args.pcaw_path, "pcaw.npy"))
-        pcaw = PCAW(m, P, args.pcaw_dims)
-        args.pcaw = pcaw
-    else:
-        args.pcaw = None
-
-    if args.use_predict:
-        predict(args)
-    else:
-        extract(args)
+for test_data, len_data in [(query_data, query_len), (gallery_data, gallery_len)]:
+    progbar = keras.utils.Progbar(len_data)
+    for i, batch_data in enumerate(test_data, 1):
+        progbar.update(i)
+        distributed_extract(*batch_data)
+        ## To Remove. The break deals with RuntimeError
+        if i >= len_data: break
 
 '''load_weights
-`train` in trainer matches `extract` in extractor.
-`fit` in trainner matches `predict` in extractor.
+`trainer` matches `extracter`.
 '''
 
-'''GPU
-CUDA_VISIBLE_DEVICES=1 python extractor.py --net=resnet -out_dir=output
 '''
-
-'''CPU
-CUDA_VISIBLE_DEVICES=-1 python extractor.py --net=resnet -out_dir=output
+python extractor.py --net=resnet -out_dir=output
 '''

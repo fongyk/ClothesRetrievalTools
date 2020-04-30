@@ -8,14 +8,20 @@ import time
 
 from utils.filter_bbox import get_filtered
 
-TEST = True
+TEST = False
 
+## filter bounding box according to overlap.
 FILTER_BBOX = False
+
+## category predicted by detedction-network or feature-network.
+USE_DETECT_CATEGORY = True
 
 RERANK = 0
 
 CLASS_NUM = 14
 
+## directory that the json files in, 
+## which includes detection result: id, bbox, cls.
 ROOT_FOLDER = "/data6/fong/maskrcnn_env"
 ENV_FOLDER = "maskrcnn-benchmark-sibling"
 if TEST:
@@ -25,7 +31,7 @@ else:
     DATABASE_FOLDER = os.path.join(ROOT_FOLDER, ENV_FOLDER, "output/predict/gallery")
     QUERY_FOLDER = os.path.join(ROOT_FOLDER, ENV_FOLDER, "output/predict/query")
 
-FEAT_FOLDER = "res_out/feat"
+FEAT_FOLDER = "output/feat"
 
 SAVE_DIR = "/data6/fong/DeepFashion/code/utils"
 
@@ -73,8 +79,10 @@ class Retrieval(object):
             if FILTER_BBOX:
                 predict_bboxes, predict_labels = get_filtered(predict_bboxes, predict_labels)
             for item in range(len(predict_labels)):
-                predict_category = predict_labels[item]
-                # predict_category = int(np.load(os.path.join(FEAT_FOLDER, "{}-{}.jpg.prd.npy".format(image_name, item))))
+                if USE_DETECT_CATEGORY:
+                    predict_category = predict_labels[item]
+                else:
+                    predict_category = int(np.load(os.path.join(FEAT_FOLDER, "{}-{}.jpg.prd.npy".format(image_name, item))))
                 feature = np.load(os.path.join(FEAT_FOLDER, "{}-{}.jpg.npy".format(image_name, item))).tolist()
                 bbox = [int(_) for _ in predict_bboxes[item]]
                 self.index_feature[predict_category].append(feature)
@@ -131,8 +139,10 @@ class Retrieval(object):
                     query_bboxes, query_labels, query_scores = get_filtered(query_bboxes, query_labels, query_scores)
                 for qitem in range(len(query_labels)):
                     query_feature = np.load(os.path.join(FEAT_FOLDER, "{}-{}.jpg.npy".format(query_name, qitem))).tolist()
-                    query_category = query_labels[qitem]
-                    # query_category = int(np.load(os.path.join(FEAT_FOLDER, "{}-{}.jpg.prd.npy".format(query_name, qitem))))
+                    if USE_DETECT_CATEGORY:
+                        query_category = query_labels[qitem]
+                    else:
+                        query_category = int(np.load(os.path.join(FEAT_FOLDER, "{}-{}.jpg.prd.npy".format(query_name, qitem))))
                     gallery_image_id, gallery_bbox = self.__search_in_category(query_category, query_feature)
                     q_result = {
                         "query_image_id": query_image_id,

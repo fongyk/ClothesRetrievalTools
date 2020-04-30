@@ -2,7 +2,7 @@ import os
 
 import torch
 
-from utils.log import set_logger
+import logging
 
 class Checkpointer(object):
     def __init__(
@@ -20,7 +20,7 @@ class Checkpointer(object):
         self.save_dir = save_dir
         self.save_to_disk = save_to_disk
         if logger is None:
-            logger = set_logger(__name__)
+            logger = logging.getLogger("main.checkpointer")
         self.logger = logger
 
     def save(self, name, **kwargs):
@@ -45,10 +45,10 @@ class Checkpointer(object):
 
     def load(self, f=None, use_latest=True):
         if self.has_checkpoint() and use_latest:
-            # override argument with existing checkpoint
+            ## override argument with existing checkpoint
             f = self.get_checkpoint_file()
         if not f:
-            # no checkpoint could be found
+            ## no checkpoint could be found
             self.logger.info("No checkpoint found. Initializing model from scratch")
             return {}
         self.logger.info("Loading checkpoint from {}".format(f))
@@ -61,7 +61,7 @@ class Checkpointer(object):
             self.logger.info("Loading scheduler from {}".format(f))
             self.scheduler.load_state_dict(checkpoint.pop("scheduler"))
 
-        # return any further checkpoint data
+        ## return any further checkpoint data
         return checkpoint
 
     def has_checkpoint(self):
@@ -75,8 +75,8 @@ class Checkpointer(object):
                 last_saved = f.read()
                 last_saved = last_saved.strip()
         except IOError:
-            # if file doesn't exist, maybe because it has just been
-            # deleted by a separate process
+            ## if file doesn't exist, maybe because it has just been
+            ## deleted by a separate process
             last_saved = ""
         return last_saved
 

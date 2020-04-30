@@ -1,5 +1,7 @@
 # ClothesRetrievalTools
 
+This is a distributed version by using multiple GPUs in one node.  
+
 ## Description
 
 Train a feature embedding network with cross entropy loss and triplet loss.
@@ -20,20 +22,26 @@ Training sample: a triplet consists of shop/user anchors and shop/user negatives
 
 `pydot` and `graphviz` are expected when calling `plot_model`.
 
+## Specify GPUs
+
+Globally set `os.environ["CUDA_VISIBLE_DEVICES"]`. By default, strategy occupies all available GPUs.
+
 ## Trainer and extractor
 
-`trainer`: training with cross-entropy loss and triplet loss.
+`trainer`/`fitter`: training with cross-entropy loss and triplet loss.
 
-`extractor`: loading the trained model to extract image features.
+`extractor`/`predicter`: loading the trained model to extract image features.
 
-Two modes are provided: `train-extract` and `fit-predict`。
-- when `train` mode (custom training) are adopted in trainer, then use `extract` mode in extractor.
-    - `train`: training with pre-sampled triplets.
-- when `fit` mode are adopted in trainer, then use `predict` mode in extractor.
-    - `fit`: training with batch mining through `tensorflow_addons.losses.TripletSemiHardLoss`.
-
-
+At the end of test_data, `extractor` raises
+```
+RuntimeError: Can't copy Tensor with type string to device /job:localhost/replica:0/task:0/device:GPU:0.
+```
+Accoring to https://github.com/tensorflow/tensorflow/issues/38343#issuecomment-610853936, it seems to be fixed with TF v2.2.0-rc2.
 
 ## Retrieval
 
 - **retrieval_in_category** only search in the same category as the query.
+
+## Note
+
+Run in `tmux` environment could supress progress bar.

@@ -76,7 +76,7 @@ def getkeypoints(ann):
     return keypoints
 
 class FashionDataset(torch.utils.data.Dataset):
-    def __init__(self, item_num=1, transforms=IMG_TRANSFORMS):
+    def __init__(self, item_num=QUADRUPLE_NUM, transforms=IMG_TRANSFORMS):
         self.ann_file = ann_file
         self.quadruple_path = quadruple_path
         self.quadruple_num = QUADRUPLE_NUM

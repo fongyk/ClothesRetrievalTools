@@ -1,5 +1,7 @@
 # ClothesRetrievalTools
 
+This is a distributed version by using multiple GPUs in one node. 
+
 ## Description
 
 Train a feature embedding network with cross entropy loss and triplet loss.
@@ -17,6 +19,10 @@ Training sample: a quadruplet consists of shop/user anchors and shop/user negati
 - apex                      0.1
 - torchvision               0.2.2
 - [maskrcnn-benchmark](https://github.com/facebookresearch/maskrcnn-benchmark)(optional)        0.1
+
+## Specify GPUs
+
+Globally set `os.environ["CUDA_VISIBLE_DEVICES"]`. By default, strategy occupies all available GPUs.
 
 ## Retrieval
 

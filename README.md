@@ -1,5 +1,7 @@
 # ClothesRetrievalTools
 
+This is a distributed version by using multiple GPUs in one node. 
+
 ## Data organization
 
 ```
