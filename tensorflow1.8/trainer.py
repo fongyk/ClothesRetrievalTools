@@ -57,9 +57,9 @@ try:
     ## model forward
     model = Model.model
     input_shape = [None, INPUT_SIZE, INPUT_SIZE, 3]
-    anchor = tf.placeholder(tf.float32, input_shape)
-    pos = tf.placeholder(tf.float32, input_shape)
-    neg = tf.placeholder(tf.float32, input_shape)
+    anchor = tf.placeholder(tf.float32, input_shape, name="anchor")
+    pos = tf.placeholder(tf.float32, input_shape, name="positive")
+    neg = tf.placeholder(tf.float32, input_shape, name="negative")
     label = tf.placeholder(tf.int32, [None,])
     anchor_feature, anchor_logits = model(anchor, is_training=True, reuse=None)
     pos_feature, pos_logits = model(pos, is_training=True, reuse=True)
@@ -83,6 +83,11 @@ try:
     global_step = tf.Variable(0, name="global_step", trainable=False)
     optimizer, lr_schedule = make_optimizer(args, global_step)
     add_global_step = global_step.assign_add(1)
+    ## tf.summary
+    tf.summary.scalar("feature_loss", feature_loss)
+    tf.summary.scalar("logits_loss", logits_loss)
+    tf.summary.scalar("train_accuracy", total_accuracy)
+    tf.summary.scalar("learning_rate", lr_schedule)
     ## update moving_mean and moving_variance in batch_norm
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
@@ -121,6 +126,12 @@ with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
     ## initialize weights
     sess.run(init)
     restorer.restore(sess, args.ckpt)
+    ## merge summary
+    merge_summary_op = tf.summary.merge_all()
+    summary_writer = tf.summary.FileWriter(
+        "{}/summary".format(args.out_dir), 
+        sess.graph
+    )
     ## train
     tf.train.start_queue_runners(sess=sess)
     for itr in range(start_itr, max_itr+1):
@@ -169,6 +180,17 @@ with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
                     eta=eta
                 )
             )
+            ## summary writing
+            summary_str = sess.run(
+                merge_summary_op,
+                feed_dict={
+                    anchor: batch_data[0],
+                    pos: batch_data[1],
+                    neg: batch_data[2],
+                    label: batch_data[3]
+                }
+            )
+            summary_writer.add_summary(summary_str, itr)
 
         ## save model
         if itr % args.checkpoint_period == 0:
