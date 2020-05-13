@@ -80,9 +80,9 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
         ## model forward
         model = Model.model
         input_shape = [None, INPUT_SIZE, INPUT_SIZE, 3]
-        anchor = tf.placeholder(tf.float32, input_shape)
-        pos = tf.placeholder(tf.float32, input_shape)
-        neg = tf.placeholder(tf.float32, input_shape)
+        anchor = tf.placeholder(tf.float32, input_shape, name="anchor")
+        pos = tf.placeholder(tf.float32, input_shape, name="positive")
+        neg = tf.placeholder(tf.float32, input_shape, name="negative")
         label = tf.placeholder(tf.int32, [None,])
         anchor_splits = tf.split(anchor, num_or_size_splits=num_gpu, axis=0)
         pos_splits = tf.split(pos, num_or_size_splits=num_gpu, axis=0)
@@ -94,7 +94,7 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
         for i, gpu in enumerate(GPUs):
             with tf.device("/gpu:%d" % gpu):
                 ## reuse_vars = True
-                with tf.variable_scope("", reuse=tf.AUTO_REUSE):
+                with tf.variable_scope("", reuse=tf.AUTO_REUSE) as scope:
                     anchor_feature, anchor_logits = model(anchor_splits[i], is_training=True)
                     pos_feature, pos_logits = model(pos_splits[i], is_training=True)
                     neg_feature, neg_logits = model(neg_splits[i], is_training=True)
@@ -126,6 +126,8 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
                     tower_accu.append(total_accuracy)
                     ## collect moving_mean and moving_variance in batch_norm
                     update_ops.extend(tf.get_collection(tf.GraphKeys.UPDATE_OPS))
+                    ## retain summaries from the last tower
+                    summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
         loss_avg = tf.reduce_mean(tower_loss, axis=0)
         accu_avg = tf.reduce_mean(tower_accu, axis=0)
         grads_avg = average_gradients(tower_grads)
@@ -133,6 +135,12 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
         ## use moving averages of trainable variables to boost generalization power
         variable_averages = tf.train.ExponentialMovingAverage(0.99, global_step)
         variables_averages_op = variable_averages.apply(tf.trainable_variables())
+        ## tf.summary, feature_loss & logits_loss & train_accuracy are tracked from the last tower
+        summaries.append(tf.summary.scalar("learning_rate", lr_schedule))
+        summaries.append(tf.summary.scalar("all_loss", loss_avg))
+        summaries.append(tf.summary.scalar("feature_loss", feature_loss))
+        summaries.append(tf.summary.scalar("logits_loss", logits_loss))
+        summaries.append(tf.summary.scalar("train_accuracy", total_accuracy))
         with tf.control_dependencies(update_ops):
             train_op = tf.group(grads_op, variables_averages_op)
     except Exception as e:
@@ -171,6 +179,12 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
         sess.run(init)
         restorer.restore(sess, args.ckpt)
         logger.info("Restored {}".format(args.ckpt))
+        ## merge summary
+        merge_summary_op = tf.summary.merge(summaries)
+        summary_writer = tf.summary.FileWriter(
+            "{}/summary".format(args.out_dir), 
+            sess.graph
+        )
         ## train
         tf.train.start_queue_runners(sess=sess)
         for itr in range(start_itr, max_itr+1):
@@ -220,6 +234,17 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
                         eta=eta
                     )
                 )
+                ## summary writing
+                summary_str = sess.run(
+                    merge_summary_op,
+                    feed_dict={
+                        anchor: batch_data[0],
+                        pos: batch_data[1],
+                        neg: batch_data[2],
+                        label: batch_data[3]
+                    }
+                )
+                summary_writer.add_summary(summary_str, itr)
 
             ## save model
             if itr % args.checkpoint_period == 0:
@@ -261,8 +286,4 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
 
 '''
 python trainer.py
-'''
-
-'''
-in multi-gpu mode.
 '''
