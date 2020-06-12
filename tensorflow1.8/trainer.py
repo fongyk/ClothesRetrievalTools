@@ -137,9 +137,9 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
         variables_averages_op = variable_averages.apply(tf.trainable_variables())
         ## tf.summary, feature_loss & logits_loss & train_accuracy are tracked from the last tower
         summaries.append(tf.summary.scalar("learning_rate", lr_schedule))
-        summaries.append(tf.summary.scalar("all_loss", loss_avg))
-        summaries.append(tf.summary.scalar("feature_loss", feature_loss))
-        summaries.append(tf.summary.scalar("logits_loss", logits_loss))
+        summaries.append(tf.summary.scalar("loss/all_loss", loss_avg))
+        summaries.append(tf.summary.scalar("loss/feature_loss", feature_loss))
+        summaries.append(tf.summary.scalar("loss/logits_loss", logits_loss))
         summaries.append(tf.summary.scalar("train_accuracy", total_accuracy))
         with tf.control_dependencies(update_ops):
             train_op = tf.group(grads_op, variables_averages_op)
