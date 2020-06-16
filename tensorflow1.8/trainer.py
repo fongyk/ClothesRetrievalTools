@@ -172,6 +172,7 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
     restorer = Model.make_variable_restorer()
     saver = tf.train.Saver(max_to_keep=3)
     with tf.Session(config=tf.ConfigProto(
+            gpu_options=tf.GPUOptions(allow_growth=True),
             allow_soft_placement=True,
             log_device_placement=False
         )) as sess:
@@ -191,9 +192,9 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
             batch_data = sess.run(next_train_data)
             _, batch_tl, batch_xl, batch_accu, add, lr = sess.run(
                 fetches=[
-                    train_op, 
-                    feature_loss, logits_loss, 
-                    accu_avg, 
+                    train_op,
+                    feature_loss, logits_loss,
+                    accu_avg,
                     add_global_step, lr_schedule
                 ],
                 feed_dict={
@@ -249,7 +250,7 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
             ## save model
             if itr % args.checkpoint_period == 0:
                 saver.save(
-                    sess, 
+                    sess,
                     "{}/model.ckpt".format(args.out_dir),
                     global_step=itr
                 )
@@ -268,10 +269,10 @@ with tf.Graph().as_default(), tf.device('/cpu:0'):
                     )
                     meters.update(val_accuracy=val_accu)
                 logger.info("val_accuracy: {:.2f}\n".format(meters.val_accuracy.global_avg))
-                
+
             if itr == max_itr:
                 saver.save(
-                    sess, 
+                    sess,
                     "{}/model_final.ckpt".format(args.out_dir),
                     global_step=itr
                 )

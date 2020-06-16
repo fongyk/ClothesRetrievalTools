@@ -101,7 +101,7 @@ gallery_iterator = gallery_data.make_one_shot_iterator()
 next_query = query_iterator.get_next()
 next_gallery = gallery_iterator.get_next()
 logger.info("Start extracting ......")
-with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+with tf.Session(config=tf.ConfigProto(allow_soft_placement=True, gpu_options=tf.GPUOptions(allow_growth=True))) as sess:
     if latest is not None:
         saver.restore(sess, latest)
     else:
@@ -116,8 +116,8 @@ with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
                 }
             )
             write_result(
-                batch_features, 
-                batch_predicts, 
+                batch_features,
+                batch_predicts,
                 batch_names
             )
 '''
